@@ -19,6 +19,56 @@ import glob
 import random
 import logging
 
+
+import requests
+import os
+import time
+def extract_video_id(link: str) -> str:
+    """
+    Extracts the video ID from a variety of YouTube links.
+    Supports full, shortened, and playlist URLs.
+    """
+    # Regular expression to match different YouTube link formats
+    patterns = [
+        r'youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=)([0-9A-Za-z_-]{11})',  # youtube.com/watch?v= or youtube.com/embed/
+        r'youtu\.be\/([0-9A-Za-z_-]{11})',  # youtu.be/short link
+        r'youtube\.com\/(?:playlist\?list=[^&]+&v=|v\/)([0-9A-Za-z_-]{11})',  # youtube.com/playlist?list= and youtube.com/v/
+        r'youtube\.com\/(?:.*\?v=|.*\/)([0-9A-Za-z_-]{11})'  # youtube.com/watch?v= with additional query parameters
+    ]
+
+    for pattern in patterns:
+        match = re.search(pattern, link)
+        if match:
+            return match.group(1)
+
+    raise ValueError("Invalid YouTube link provided.")
+def api_dl(video_id: str) -> str:
+    api_url = f"http://139.59.115.28:8080/download/song/{video_id}"
+    file_path = os.path.join("downloads", f"{video_id}.mp3")
+
+    # Check if file already exists
+    if os.path.exists(file_path):
+        print(f"{file_path} already exists. Skipping download.")
+        return file_path
+
+    # Download the file
+    response = requests.get(api_url, stream=True)
+
+    if response.status_code == 200:
+        os.makedirs("downloads", exist_ok=True)
+        with open(file_path, 'wb') as f:
+            for chunk in response.iter_content(chunk_size=8192):
+                f.write(chunk)
+        print(f"Downloaded {file_path}")
+        return file_path
+    else:
+        print(f"Failed to download {video_id}. Status: {response.status_code}")
+        return None
+
+
+
+
+
 def cookie_txt_file():
     folder_path = f"{os.getcwd()}/cookies"
     filename = f"{os.getcwd()}/cookies/logs.csv"
@@ -297,6 +347,12 @@ class YouTubeAPI:
             link = self.base + link
         loop = asyncio.get_running_loop()
         def audio_dl():
+            try:
+                sexid = extract_video_id(link)
+                path = api_dl(sexid)
+                return path
+            except:
+                print("api failed")
             ydl_optssx = {
                 "format": "bestaudio/best",
                 "outtmpl": "downloads/%(id)s.%(ext)s",
