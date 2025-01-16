@@ -70,7 +70,7 @@ import os
 import requests
 
 def api_dl(video_id: str) -> str:
-    api_url = f"http://139.59.115.28:8080/download/song/{video_id}"
+    api_url = f"http://43.205.255.144:8080/download/song/{video_id}"
     file_path = os.path.join("downloads", f"{video_id}.mp3")
 
     # Check if file already exists
