@@ -1,6 +1,5 @@
 import os
 import re
-
 import aiofiles
 import aiohttp
 from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageFont
@@ -11,25 +10,27 @@ from AnonXMusic import app
 from config import YOUTUBE_IMG_URL
 
 
-def changeImageSize(maxWidth, maxHeight, image):
-    widthRatio = maxWidth / image.size[0]
-    heightRatio = maxHeight / image.size[1]
-    newWidth = int(widthRatio * image.size[0])
-    newHeight = int(heightRatio * image.size[1])
-    newImage = image.resize((newWidth, newHeight))
-    return newImage
+def change_image_size(max_width, max_height, image):
+    """Resize image while maintaining aspect ratio."""
+    width_ratio = max_width / image.size[0]
+    height_ratio = max_height / image.size[1]
+    new_width = int(width_ratio * image.size[0])
+    new_height = int(height_ratio * image.size[1])
+    return image.resize((new_width, new_height))
 
 
 def clear(text):
-    list = text.split(" ")
+    """Ensure title does not exceed a certain length."""
+    words = text.split(" ")
     title = ""
-    for i in list:
-        if len(title) + len(i) < 60:
-            title += " " + i
+    for word in words:
+        if len(title) + len(word) < 60:
+            title += " " + word
     return title.strip()
 
 
 async def get_thumb(videoid):
+    """Generate a stylish and visually appealing YouTube thumbnail."""
     if os.path.isfile(f"cache/{videoid}.png"):
         return f"cache/{videoid}.png"
 
@@ -37,85 +38,71 @@ async def get_thumb(videoid):
     try:
         results = VideosSearch(url, limit=1)
         for result in (await results.next())["result"]:
-            try:
-                title = result["title"]
-                title = re.sub("\W+", " ", title)
-                title = title.title()
-            except:
-                title = "Unsupported Title"
-            try:
-                duration = result["duration"]
-            except:
-                duration = "Unknown Mins"
+            title = re.sub(r"\W+", " ", result.get("title", "Unknown Title")).title()
+            duration = result.get("duration", "Unknown Mins")
             thumbnail = result["thumbnails"][0]["url"].split("?")[0]
-            try:
-                views = result["viewCount"]["short"]
-            except:
-                views = "Unknown Views"
-            try:
-                channel = result["channel"]["name"]
-            except:
-                channel = "Unknown Channel"
+            views = result.get("viewCount", {}).get("short", "Unknown Views")
+            channel = result.get("channel", {}).get("name", "Unknown Channel")
 
+        # Download the thumbnail image
         async with aiohttp.ClientSession() as session:
             async with session.get(thumbnail) as resp:
                 if resp.status == 200:
-                    f = await aiofiles.open(f"cache/thumb{videoid}.png", mode="wb")
-                    await f.write(await resp.read())
-                    await f.close()
+                    temp_path = f"cache/temp_{videoid}.png"
+                    async with aiofiles.open(temp_path, mode="wb") as f:
+                        await f.write(await resp.read())
 
-        youtube = Image.open(f"cache/thumb{videoid}.png")
-        image1 = changeImageSize(1280, 720, youtube)
-        image2 = image1.convert("RGBA")
-        background = image2.filter(filter=ImageFilter.BoxBlur(10))
-        enhancer = ImageEnhance.Brightness(background)
-        background = enhancer.enhance(0.5)
-        draw = ImageDraw.Draw(background)
-        arial = ImageFont.truetype("AnonXMusic/assets/font2.ttf", 30)
-        font = ImageFont.truetype("AnonXMusic/assets/font.ttf", 30)
-        draw.text((1110, 8), unidecode(app.name), fill="white", font=arial)
-        draw.text(
-            (55, 560),
-            f"{channel} | {views[:23]}",
-            (255, 255, 255),
-            font=arial,
-        )
-        draw.text(
-            (57, 600),
-            clear(title),
-            (255, 255, 255),
-            font=font,
-        )
-        draw.line(
-            [(55, 660), (1220, 660)],
-            fill="white",
-            width=5,
-            joint="curve",
-        )
-        draw.ellipse(
-            [(918, 648), (942, 672)],
-            outline="white",
-            fill="white",
-            width=15,
-        )
-        draw.text(
-            (36, 685),
-            "00:00",
-            (255, 255, 255),
-            font=arial,
-        )
-        draw.text(
-            (1185, 685),
-            f"{duration[:23]}",
-            (255, 255, 255),
-            font=arial,
-        )
-        try:
-            os.remove(f"cache/thumb{videoid}.png")
-        except:
-            pass
-        background.save(f"cache/{videoid}.png")
-        return f"cache/{videoid}.png"
+        # Open and process image
+        youtube = Image.open(temp_path)
+        image = change_image_size(1280, 720, youtube).convert("RGBA")
+
+        # Create a stylish gradient overlay
+        overlay = Image.new("RGBA", image.size, (0, 0, 0, 180))  # Semi-transparent black layer
+        gradient = Image.new("L", (1, 720), color=0)
+        for y in range(720):
+            gradient.putpixel((0, y), int((y / 720) * 255))  # Stronger gradient effect
+        gradient = gradient.resize(image.size)
+        overlay.putalpha(gradient)
+
+        # Blend image with overlay
+        blended = Image.blend(image, overlay, alpha=0.6)
+
+        # Draw elements on the image
+        draw = ImageDraw.Draw(blended)
+        font_title = ImageFont.truetype("AnonXMusic/assets/font.ttf", 50)
+        font_info = ImageFont.truetype("AnonXMusic/assets/font2.ttf", 35)
+        font_small = ImageFont.truetype("AnonXMusic/assets/font2.ttf", 28)
+
+        # Add YouTube Play Button Overlay
+        play_button = Image.open("AnonXMusic/assets/play_button.png").convert("RGBA")
+        play_button = play_button.resize((180, 180))
+        blended.paste(play_button, (550, 260), play_button)
+
+        # Add Channel Name and Views with a glow effect
+        draw.text((60, 550), f"{channel}  •  {views}", fill="white", font=font_info, stroke_width=2, stroke_fill="black")
+
+        # Add Video Title with glow effect
+        draw.text((60, 610), clear(title), fill="white", font=font_title, stroke_width=2, stroke_fill="black")
+
+        # Enhanced progress bar with a red accent
+        progress_bar_x_start, progress_bar_x_end = 60, 1220
+        progress_bar_y = 680
+        draw.line([(progress_bar_x_start, progress_bar_y), (progress_bar_x_end, progress_bar_y)],
+                  fill="red", width=10)
+
+        # Add a circular progress indicator
+        draw.ellipse([(1180, 660), (1205, 685)], fill="white")
+
+        # Add timestamps
+        draw.text((55, 695), "00:00", fill="white", font=font_small, stroke_width=1, stroke_fill="black")
+        draw.text((1175, 695), duration, fill="white", font=font_small, stroke_width=1, stroke_fill="black")
+
+        # Save final thumbnail
+        os.remove(temp_path)  # Remove temp image
+        final_path = f"cache/{videoid}.png"
+        blended.save(final_path)
+        return final_path
+
     except Exception as e:
         print(e)
         return YOUTUBE_IMG_URL
