@@ -30,7 +30,7 @@ def clear(text):
 
 
 async def get_thumb(videoid):
-    """Generate a stylish and visually appealing YouTube thumbnail."""
+    """Generate an attractive YouTube thumbnail with enhanced design."""
     if os.path.isfile(f"cache/{videoid}.png"):
         return f"cache/{videoid}.png"
 
@@ -56,46 +56,41 @@ async def get_thumb(videoid):
         youtube = Image.open(temp_path)
         image = change_image_size(1280, 720, youtube).convert("RGBA")
 
-        # Create a stylish gradient overlay
+        # Create a gradient overlay for aesthetics
         overlay = Image.new("RGBA", image.size, (0, 0, 0, 180))  # Semi-transparent black layer
         gradient = Image.new("L", (1, 720), color=0)
         for y in range(720):
-            gradient.putpixel((0, y), int((y / 720) * 255))  # Stronger gradient effect
+            gradient.putpixel((0, y), int((y / 720) * 200))  # Gradient effect
         gradient = gradient.resize(image.size)
         overlay.putalpha(gradient)
 
         # Blend image with overlay
-        blended = Image.blend(image, overlay, alpha=0.6)
+        blended = Image.blend(image, overlay, alpha=0.5)
 
-        # Draw elements on the image
+        # Draw elements on image
         draw = ImageDraw.Draw(blended)
-        font_title = ImageFont.truetype("AnonXMusic/assets/font.ttf", 50)
-        font_info = ImageFont.truetype("AnonXMusic/assets/font2.ttf", 35)
-        font_small = ImageFont.truetype("AnonXMusic/assets/font2.ttf", 28)
+        font_title = ImageFont.truetype("AnonXMusic/assets/font.ttf", 45)
+        font_info = ImageFont.truetype("AnonXMusic/assets/font2.ttf", 30)
+        font_small = ImageFont.truetype("AnonXMusic/assets/font2.ttf", 25)
 
-        # Add YouTube Play Button Overlay
-        play_button = Image.open("AnonXMusic/assets/play_button.png").convert("RGBA")
-        play_button = play_button.resize((180, 180))
-        blended.paste(play_button, (550, 260), play_button)
+        # Add channel name and views
+        draw.text((50, 550), f"{channel}  •  {views}", fill="white", font=font_info)
 
-        # Add Channel Name and Views with a glow effect
-        draw.text((60, 550), f"{channel}  •  {views}", fill="white", font=font_info, stroke_width=2, stroke_fill="black")
+        # Add video title
+        draw.text((50, 600), clear(title), fill="white", font=font_title)
 
-        # Add Video Title with glow effect
-        draw.text((60, 610), clear(title), fill="white", font=font_title, stroke_width=2, stroke_fill="black")
-
-        # Enhanced progress bar with a red accent
-        progress_bar_x_start, progress_bar_x_end = 60, 1220
-        progress_bar_y = 680
+        # Add progress bar
+        progress_bar_x_start, progress_bar_x_end = 50, 1230
+        progress_bar_y = 670
         draw.line([(progress_bar_x_start, progress_bar_y), (progress_bar_x_end, progress_bar_y)],
-                  fill="red", width=10)
+                  fill="white", width=8)
 
-        # Add a circular progress indicator
-        draw.ellipse([(1180, 660), (1205, 685)], fill="white")
+        # Add circular progress indicator
+        draw.ellipse([(1180, 655), (1205, 680)], fill="white")
 
-        # Add timestamps
-        draw.text((55, 695), "00:00", fill="white", font=font_small, stroke_width=1, stroke_fill="black")
-        draw.text((1175, 695), duration, fill="white", font=font_small, stroke_width=1, stroke_fill="black")
+        # Add time stamps
+        draw.text((40, 690), "00:00", fill="white", font=font_small)
+        draw.text((1185, 690), duration, fill="white", font=font_small)
 
         # Save final thumbnail
         os.remove(temp_path)  # Remove temp image
