@@ -1,5 +1,6 @@
 import os
 import re
+
 import aiofiles
 import aiohttp
 from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageFont
@@ -10,27 +11,25 @@ from AnonXMusic import app
 from config import YOUTUBE_IMG_URL
 
 
-def resize_image(max_width, max_height, image):
-    """Resize image while maintaining aspect ratio."""
-    width_ratio = max_width / image.size[0]
-    height_ratio = max_height / image.size[1]
-    new_width = int(width_ratio * image.size[0])
-    new_height = int(height_ratio * image.size[1])
-    return image.resize((new_width, new_height))
+def changeImageSize(maxWidth, maxHeight, image):
+    widthRatio = maxWidth / image.size[0]
+    heightRatio = maxHeight / image.size[1]
+    newWidth = int(widthRatio * image.size[0])
+    newHeight = int(heightRatio * image.size[1])
+    newImage = image.resize((newWidth, newHeight))
+    return newImage
 
 
-def clean_text(text):
-    """Ensure the title is concise and visually balanced."""
-    words = text.split(" ")
+def clear(text):
+    list = text.split(" ")
     title = ""
-    for word in words:
-        if len(title) + len(word) < 50:
-            title += " " + word
+    for i in list:
+        if len(title) + len(i) < 60:
+            title += " " + i
     return title.strip()
 
 
 async def get_thumb(videoid):
-    """Generate a stylish YouTube thumbnail with a blurred background and a centered details box."""
     if os.path.isfile(f"cache/{videoid}.png"):
         return f"cache/{videoid}.png"
 
@@ -58,64 +57,65 @@ async def get_thumb(videoid):
             except:
                 channel = "Unknown Channel"
 
-        # Download the thumbnail
         async with aiohttp.ClientSession() as session:
             async with session.get(thumbnail) as resp:
                 if resp.status == 200:
-                    temp_path = f"cache/temp_{videoid}.png"
-                    async with aiofiles.open(temp_path, mode="wb") as f:
-                        await f.write(await resp.read())
+                    f = await aiofiles.open(f"cache/thumb{videoid}.png", mode="wb")
+                    await f.write(await resp.read())
+                    await f.close()
 
-        # Open the image and apply a blurred background
-        base_img = Image.open(temp_path)
-        resized_img = resize_image(1280, 720, base_img).convert("RGBA")
-        blurred_bg = resized_img.filter(ImageFilter.GaussianBlur(20))  # Strong blur effect
-        dark_overlay = Image.new("RGBA", resized_img.size, (0, 0, 0, 120))
-        blurred_bg = Image.alpha_composite(blurred_bg, dark_overlay)
-
-        # Create a centered rectangle for song details
-        details_box = Image.new("RGBA", (1000, 250), (0, 0, 0, 200))  # Semi-transparent dark box
-        rounded_mask = Image.new("L", (1000, 250), 0)
-        draw_mask = ImageDraw.Draw(rounded_mask)
-        draw_mask.rounded_rectangle([(0, 0), (1000, 250)], radius=40, fill=255)  # Rounded corners
-        details_box.putalpha(rounded_mask)
-
-        # Paste the details box onto the blurred background
-        blurred_bg.paste(details_box, (140, 230), details_box)
-
-        # Draw text on the details box
-        draw = ImageDraw.Draw(blurred_bg)
-        font_title = ImageFont.truetype("AnonXMusic/assets/font.ttf", 50)
-        font_info = ImageFont.truetype("AnonXMusic/assets/font2.ttf", 35)
-
-        # Add YouTube details
-        draw.text((180, 250), f"{channel}  •  {views}", fill="white", font=font_info, stroke_width=2, stroke_fill="black")
-        draw.text((180, 310), clean_text(title), fill="white", font=font_title, stroke_width=2, stroke_fill="black")
-
-        # **Progress Bar & Timestamps**
-        progress_bar_x_start, progress_bar_x_end = 180, 1120
-        progress_bar_y = 460
-        draw.rounded_rectangle(
-            [(progress_bar_x_start, progress_bar_y - 5), (progress_bar_x_end, progress_bar_y + 5)],
-            radius=10,
-            fill=(255, 0, 100),
-            outline="white",
-            width=2
+        youtube = Image.open(f"cache/thumb{videoid}.png")
+        image1 = changeImageSize(1280, 720, youtube)
+        image2 = image1.convert("RGBA")
+        background = image2.filter(filter=ImageFilter.BoxBlur(10))
+        enhancer = ImageEnhance.Brightness(background)
+        background = enhancer.enhance(0.5)
+        draw = ImageDraw.Draw(background)
+        arial = ImageFont.truetype("AnonXMusic/assets/font2.ttf", 30)
+        font = ImageFont.truetype("AnonXMusic/assets/font.ttf", 30)
+        draw.text((1110, 8), unidecode(app.name), fill="white", font=arial)
+        draw.text(
+            (55, 560),
+            f"{channel} | {views[:23]}",
+            (255, 255, 255),
+            font=arial,
         )
-
-        # Circular progress indicator
-        draw.ellipse([(1080, 440), (1105, 465)], fill="white", outline="black", width=2)
-
-        # **Timestamps**
-        draw.text((180, 470), "00:00", fill="white", font=font_info, stroke_width=1, stroke_fill="black")
-        draw.text((1070, 470), duration, fill="white", font=font_info, stroke_width=1, stroke_fill="black")
-
-        # Save final thumbnail
-        os.remove(temp_path)  # Remove temp image
-        final_path = f"cache/{videoid}.png"
-        blurred_bg.save(final_path)
-        return final_path
-
+        draw.text(
+            (57, 600),
+            clear(title),
+            (255, 255, 255),
+            font=font,
+        )
+        draw.line(
+            [(55, 660), (1220, 660)],
+            fill="white",
+            width=5,
+            joint="curve",
+        )
+        draw.ellipse(
+            [(918, 648), (942, 672)],
+            outline="white",
+            fill="white",
+            width=15,
+        )
+        draw.text(
+            (36, 685),
+            "00:00",
+            (255, 255, 255),
+            font=arial,
+        )
+        draw.text(
+            (1185, 685),
+            f"{duration[:23]}",
+            (255, 255, 255),
+            font=arial,
+        )
+        try:
+            os.remove(f"cache/thumb{videoid}.png")
+        except:
+            pass
+        background.save(f"cache/{videoid}.png")
+        return f"cache/{videoid}.png"
     except Exception as e:
         print(e)
         return YOUTUBE_IMG_URL
