@@ -24,13 +24,13 @@ def clear(text):
     words = text.split(" ")
     title = ""
     for word in words:
-        if len(title) + len(word) < 60:
+        if len(title) + len(word) < 50:
             title += " " + word
     return title.strip()
 
 
 async def get_thumb(videoid):
-    """Generate an attractive YouTube thumbnail with enhanced design."""
+    """Generate a unique and stylish pillow-style YouTube thumbnail."""
     if os.path.isfile(f"cache/{videoid}.png"):
         return f"cache/{videoid}.png"
 
@@ -56,41 +56,61 @@ async def get_thumb(videoid):
         youtube = Image.open(temp_path)
         image = change_image_size(1280, 720, youtube).convert("RGBA")
 
-        # Create a gradient overlay for aesthetics
-        overlay = Image.new("RGBA", image.size, (0, 0, 0, 180))  # Semi-transparent black layer
+        # Apply soft pillow effect with rounded corners
+        rounded_mask = Image.new("L", image.size, 0)
+        draw_mask = ImageDraw.Draw(rounded_mask)
+        draw_mask.rounded_rectangle([(10, 10), (1270, 710)], radius=50, fill=255)
+        image.putalpha(rounded_mask)
+
+        # Create a semi-transparent overlay with a soft gradient
+        overlay = Image.new("RGBA", image.size, (0, 0, 0, 150))  # Semi-transparent black
         gradient = Image.new("L", (1, 720), color=0)
         for y in range(720):
-            gradient.putpixel((0, y), int((y / 720) * 200))  # Gradient effect
+            gradient.putpixel((0, y), int((y / 720) * 200))
         gradient = gradient.resize(image.size)
         overlay.putalpha(gradient)
 
-        # Blend image with overlay
-        blended = Image.blend(image, overlay, alpha=0.5)
+        # Add a soft glow effect
+        glow = Image.new("RGBA", image.size, (255, 255, 255, 40))
+        glow = glow.filter(ImageFilter.GaussianBlur(80))
+        image = Image.alpha_composite(image, glow)
 
-        # Draw elements on image
+        # Blend original image with overlay
+        blended = Image.alpha_composite(image, overlay)
+
+        # Create a text background with blur effect
+        text_bg = blended.copy().crop((40, 530, 1240, 720)).filter(ImageFilter.GaussianBlur(20))
+        blended.paste(text_bg, (40, 530))
+
+        # Draw elements on the image
         draw = ImageDraw.Draw(blended)
-        font_title = ImageFont.truetype("AnonXMusic/assets/font.ttf", 45)
-        font_info = ImageFont.truetype("AnonXMusic/assets/font2.ttf", 30)
-        font_small = ImageFont.truetype("AnonXMusic/assets/font2.ttf", 25)
+        font_title = ImageFont.truetype("AnonXMusic/assets/font.ttf", 50)
+        font_info = ImageFont.truetype("AnonXMusic/assets/font2.ttf", 35)
+        font_small = ImageFont.truetype("AnonXMusic/assets/font2.ttf", 28)
 
-        # Add channel name and views
-        draw.text((50, 550), f"{channel}  •  {views}", fill="white", font=font_info)
+        # Add channel name and views with a stylish glow
+        draw.text((60, 550), f"{channel}  •  {views}", fill="white", font=font_info, stroke_width=2, stroke_fill="black")
 
-        # Add video title
-        draw.text((50, 600), clear(title), fill="white", font=font_title)
+        # Add video title with a bold effect
+        draw.text((60, 610), clear(title), fill="white", font=font_title, stroke_width=2, stroke_fill="black")
 
-        # Add progress bar
-        progress_bar_x_start, progress_bar_x_end = 50, 1230
-        progress_bar_y = 670
-        draw.line([(progress_bar_x_start, progress_bar_y), (progress_bar_x_end, progress_bar_y)],
-                  fill="white", width=8)
+        # Enhanced progress bar with smooth curved edges
+        progress_bar_x_start, progress_bar_x_end = 60, 1220
+        progress_bar_y = 680
+        draw.rounded_rectangle(
+            [(progress_bar_x_start, progress_bar_y - 5), (progress_bar_x_end, progress_bar_y + 5)],
+            radius=10,
+            fill=(255, 0, 0),
+            outline="white",
+            width=3
+        )
 
-        # Add circular progress indicator
-        draw.ellipse([(1180, 655), (1205, 680)], fill="white")
+        # Add a circular progress indicator
+        draw.ellipse([(1180, 660), (1205, 685)], fill="white", outline="black", width=2)
 
-        # Add time stamps
-        draw.text((40, 690), "00:00", fill="white", font=font_small)
-        draw.text((1185, 690), duration, fill="white", font=font_small)
+        # Add timestamps
+        draw.text((55, 695), "00:00", fill="white", font=font_small, stroke_width=1, stroke_fill="black")
+        draw.text((1175, 695), duration, fill="white", font=font_small, stroke_width=1, stroke_fill="black")
 
         # Save final thumbnail
         os.remove(temp_path)  # Remove temp image
