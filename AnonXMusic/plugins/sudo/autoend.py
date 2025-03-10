@@ -3,7 +3,7 @@ from pyrogram.types import Message
 
 from AnonXMusic import app
 from AnonXMusic.misc import SUDOERS
-from AnonXMusic.utils.database import autoend_off, autoend_on
+from AnonXMusic.utils.database import autoend_off,autoend_on,autoleave_off, autoleave_on,is_autoend,is_autoleave
 
 
 @app.on_message(filters.command("autoend") & SUDOERS)
