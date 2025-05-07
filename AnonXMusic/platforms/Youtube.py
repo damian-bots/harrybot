@@ -12,7 +12,7 @@ from youtubesearchpython.__future__ import VideosSearch
 from AnonXMusic.utils.database import is_on_off
 from AnonXMusic.utils.formatters import time_to_seconds
 
-API_KEY = "7sY1l2jstLCOYA1s7qrKbv0e"
+API_KEY = "Rf1qda5gyCITj6VbrekzRxmR"
 
 import os
 import glob
